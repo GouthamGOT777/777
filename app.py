@@ -365,5 +365,10 @@ def api_terminal(router_id):
 
 
 if __name__ == "__main__":
-    log.info("Starting Juniper Web Console on http://0.0.0.0:8080")
-    app.run(host="0.0.0.0", port=8080, debug=False, threaded=True)
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8080)))
+    parser.add_argument("--host", default="0.0.0.0")
+    args = parser.parse_args()
+    log.info("Starting Juniper Web Console on http://%s:%s", args.host, args.port)
+    app.run(host=args.host, port=args.port, debug=False, threaded=True)
