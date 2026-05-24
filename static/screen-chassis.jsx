@@ -239,12 +239,12 @@ function Chassis({ device, setRoute }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <div className="port-grid">
                   {ports.copper.slice(0, Math.ceil(ports.copper.length / 2)).map(p => (
-                    <Port key={p.name} p={p} selected={selectedPort === p.name} onClick={() => setSelected(p.name)}/>
+                    <Port key={p.name} p={p} selected={selectedPort === p.name} onClick={() => setSelected(p.name)} onLabelClick={() => setPortDetail(p.name)}/>
                   ))}
                 </div>
                 <div className="port-grid">
                   {ports.copper.slice(Math.ceil(ports.copper.length / 2)).map(p => (
-                    <Port key={p.name} p={p} selected={selectedPort === p.name} onClick={() => setSelected(p.name)}/>
+                    <Port key={p.name} p={p} selected={selectedPort === p.name} onClick={() => setSelected(p.name)} onLabelClick={() => setPortDetail(p.name)}/>
                   ))}
                 </div>
               </div>
@@ -260,7 +260,7 @@ function Chassis({ device, setRoute }) {
                 <div style={{ flex: "0 0 auto", fontSize: 10, color: "oklch(0.7 0.01 240)", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>SFP+</div>
                 <div className="port-grid sfp" style={{ flex: 1, maxWidth: 360 }}>
                   {ports.sfp.map(p => (
-                    <Port key={p.name} p={p} sfp selected={selectedPort === p.name} onClick={() => setSelected(p.name)}/>
+                    <Port key={p.name} p={p} sfp selected={selectedPort === p.name} onClick={() => setSelected(p.name)} onLabelClick={() => setPortDetail(p.name)}/>
                   ))}
                 </div>
               </div>
@@ -338,17 +338,21 @@ function Chassis({ device, setRoute }) {
           </div>
         </div>
       </div>
+      {portDetail && <PortDetailModal device={device} portName={portDetail} onClose={() => setPortDetail(null)}/>}
     </div>
   );
 }
 
-function Port({ p, selected, onClick, sfp }) {
+function Port({ p, selected, onClick, onLabelClick, sfp }) {
   return (
     <div className={`port ${sfp ? "sfp" : ""} ${selected ? "selected" : ""}`}
          onClick={onClick} data-tip={`${p.name} · ${p.state}`}>
       <div className={`led ${p.state}`}/>
       <div className="jack"/>
-      <div className="num">{typeof p.num === "number" ? p.num : p.name.split("/").pop()}</div>
+      <div className="num" style={{ cursor: "pointer" }}
+           onClick={e => { e.stopPropagation(); if (onLabelClick) onLabelClick(); }}>
+        {typeof p.num === "number" ? p.num : p.name.split("/").pop()}
+      </div>
     </div>
   );
 }

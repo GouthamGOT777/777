@@ -387,8 +387,70 @@ function useRollingHistory(value, windowSize = 60) {
   return series;
 }
 
+function makeResizable(el) {
+  if (!el || el._resizable) return;
+  el._resizable = true;
+  let startX, startY, startW, startH, dir;
+  const MIN = 80;
+
+  const handle = (d) => {
+    const h = document.createElement("div");
+    h.style.cssText = `position:absolute;z-index:10;`;
+    if (d.includes("e")) h.style.cssText += "right:-4px;top:0;width:8px;height:100%;cursor:ew-resize;";
+    if (d.includes("s")) h.style.cssText += "bottom:-4px;left:0;height:8px;width:100%;cursor:ns-resize;";
+    if (d === "se") h.style.cssText = "position:absolute;z-index:11;right:-4px;bottom:-4px;width:14px;height:14px;cursor:nwse-resize;";
+    if (d === "w") h.style.cssText = "position:absolute;z-index:10;left:-4px;top:0;width:8px;height:100%;cursor:ew-resize;";
+    if (d === "n") h.style.cssText = "position:absolute;z-index:10;top:-4px;left:0;height:8px;width:100%;cursor:ns-resize;";
+    if (d === "nw") h.style.cssText = "position:absolute;z-index:11;left:-4px;top:-4px;width:14px;height:14px;cursor:nwse-resize;";
+    if (d === "ne") h.style.cssText = "position:absolute;z-index:11;right:-4px;top:-4px;width:14px;height:14px;cursor:nesw-resize;";
+    if (d === "sw") h.style.cssText = "position:absolute;z-index:11;left:-4px;bottom:-4px;width:14px;height:14px;cursor:nesw-resize;";
+    h.addEventListener("mousedown", e => {
+      e.preventDefault(); e.stopPropagation();
+      startX = e.clientX; startY = e.clientY;
+      const r = el.getBoundingClientRect();
+      startW = r.width; startH = r.height;
+      dir = d;
+      const onMove = e => {
+        const dx = e.clientX - startX, dy = e.clientY - startY;
+        if (dir.includes("e") || dir.includes("w")) {
+          el.style.width = Math.max(MIN, startW + (dir.includes("w") ? -dx : dx)) + "px";
+        }
+        if (dir.includes("s") || dir.includes("n")) {
+          el.style.height = Math.max(MIN, startH + (dir.includes("n") ? -dy : dy)) + "px";
+        }
+        if (dir.includes("w")) { /* position handled by flex */ }
+      };
+      const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+    return h;
+  };
+
+  const cs = getComputedStyle(el);
+  if (cs.position === "static") el.style.position = "relative";
+  ["e","s","se","w","n","nw","ne","sw"].forEach(d => el.appendChild(handle(d)));
+}
+
+// Auto-attach to all .card elements after render
+(function() {
+  const obs = new MutationObserver(() => {
+    document.querySelectorAll(".card:not([data-nr])").forEach(el => {
+      el.setAttribute("data-nr", "1");
+      makeResizable(el);
+    });
+  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => obs.observe(document.body, { childList: true, subtree: true }));
+  } else {
+    obs.observe(document.body, { childList: true, subtree: true });
+    document.querySelectorAll(".card").forEach(el => { el.setAttribute("data-nr","1"); makeResizable(el); });
+  }
+})();
+
 Object.assign(window, {
   I, Icon, Pill, Sparkline, AreaChart, useLiveSeries, formatNum, formatBps,
   Sidebar, Topbar,
   useRouterPoll, useRollingHistory,
+  makeResizable,
 });

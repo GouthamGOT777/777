@@ -20,6 +20,7 @@ function Config({ openWizard, generatedCli }) {
   const [activeSection, setActiveSection] = React.useState(null);
   const [collapsed, setCollapsed] = React.useState({});
   const toggle = k => setCollapsed(c => ({ ...c, [k]: !c[k] }));
+  const [sshOpen, setSshOpen] = React.useState(false);
 
   const sectionNames = Object.keys(sections);
 
@@ -139,6 +140,68 @@ function Config({ openWizard, generatedCli }) {
             }
           </div>
         </div>
+      </div>
+
+      {/* SSH terminal panel */}
+      <div className="card" style={{ marginTop: 18 }}>
+        <div className="card-head" style={{ cursor: "pointer" }} onClick={() => setSshOpen(o => !o)}>
+          <I.terminal size={15}/>
+          <div className="title">SSH Terminal</div>
+          <div className="sub">run commands directly on {routerId}</div>
+          <div className="spacer"/>
+          <I.chevron size={14} style={{ transform: sshOpen ? "rotate(90deg)" : "none", transition: "200ms" }}/>
+        </div>
+        {sshOpen && <SshPanel routerId={routerId}/>}
+      </div>
+    </div>
+  );
+}
+
+function SshPanel({ routerId }) {
+  const [cmd, setCmd] = React.useState("");
+  const [output, setOutput] = React.useState("");
+  const [running, setRunning] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+  const [hIdx, setHIdx] = React.useState(-1);
+  const outRef = React.useRef(null);
+
+  const run = () => {
+    if (!cmd.trim() || running) return;
+    const c = cmd.trim();
+    setHistory(h => [c, ...h.slice(0, 49)]);
+    setHIdx(-1);
+    setRunning(true);
+    setOutput(o => o + `\n$ ${c}\n`);
+    setCmd("");
+    fetch(`/api/routers/${routerId}/terminal`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command: c })
+    })
+      .then(r => r.json())
+      .then(d => { setOutput(o => o + (d.output || d.error || "")); setRunning(false); })
+      .catch(e => { setOutput(o => o + "Error: " + e.message + "\n"); setRunning(false); })
+      .finally(() => { setTimeout(() => { if (outRef.current) outRef.current.scrollTop = outRef.current.scrollHeight; }, 50); });
+  };
+
+  const onKey = e => {
+    if (e.key === "Enter") { e.preventDefault(); run(); }
+    if (e.key === "ArrowUp") { e.preventDefault(); const i = Math.min(hIdx + 1, history.length - 1); setHIdx(i); setCmd(history[i] || ""); }
+    if (e.key === "ArrowDown") { e.preventDefault(); const i = Math.max(hIdx - 1, -1); setHIdx(i); setCmd(i === -1 ? "" : history[i]); }
+  };
+
+  return (
+    <div className="card-body" style={{ padding: 0 }}>
+      <div ref={outRef} style={{ background: "oklch(0.08 0.005 240)", color: "oklch(0.85 0.01 240)", fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.6, padding: "12px 14px", minHeight: 180, maxHeight: 320, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+        {output || <span style={{ color: "oklch(0.45 0.04 240)" }}>$ type a command and press Enter…</span>}
+        {running && <span style={{ color: "oklch(0.7 0.15 155)" }}> ▋</span>}
+      </div>
+      <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderTop: "1px solid var(--border)", background: "var(--bg-2)" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--fg-3)", alignSelf: "center" }}>$</span>
+        <input value={cmd} onChange={e => setCmd(e.target.value)} onKeyDown={onKey}
+          placeholder="show version, show interfaces terse…"
+          style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 13, background: "transparent", border: "none", outline: "none", color: "var(--fg-1)" }}/>
+        <button className="btn primary" onClick={run} disabled={running || !cmd.trim()}>Run</button>
+        <button className="btn ghost" onClick={() => setOutput("")}>Clear</button>
       </div>
     </div>
   );

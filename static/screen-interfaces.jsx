@@ -246,6 +246,35 @@ function IfaceEditor({ iface, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const dirty = Object.keys(form).some(k => form[k] !== initial[k]);
 
+  const [applying, setApplying] = React.useState(false);
+  const [applyResult, setApplyResult] = React.useState("");
+
+  const applyChanges = async () => {
+    setApplying(true);
+    setApplyResult("");
+    const routerId = window.__currentRouterId;
+    try {
+      const calls = [];
+      if (form.speed !== initial.speed) {
+        calls.push(fetch(`/api/routers/${routerId}/interfaces/${encodeURIComponent(iface.name)}/speed`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ speed: form.speed })
+        }).then(r => r.json()));
+      }
+      if (form.adminUp !== initial.adminUp) {
+        calls.push(fetch(`/api/routers/${routerId}/interfaces/${encodeURIComponent(iface.name)}/admin`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ up: form.adminUp })
+        }).then(r => r.json()));
+      }
+      const results = await Promise.all(calls);
+      setApplyResult(results.map(r => r.output || JSON.stringify(r)).join("\n"));
+    } catch(e) {
+      setApplyResult("Error: " + e.message);
+    }
+    setApplying(false);
+  };
+
   // Juniper CLI diff
   const cli = React.useMemo(() => {
     const lines = [];
@@ -276,9 +305,9 @@ function IfaceEditor({ iface, onClose }) {
         </div>
         <div className="field">
           <label>Speed &amp; duplex</label>
-          <select value={form.speed} onChange={e => set("speed", e.target.value)}>
-            {speedOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-          </select>
+          <input type="text" value={form.speed} onChange={e => set("speed", e.target.value)}
+            placeholder={isSfp ? "e.g. 10g, 1g, auto" : "e.g. 1000, 100, auto"}/>
+          <div className="hint">Juniper speed value — e.g. 10g, 1g, 100m, auto</div>
         </div>
         <div className="grid cols-2">
           <div className="field">
@@ -312,7 +341,10 @@ function IfaceEditor({ iface, onClose }) {
           <button className="btn ghost" onClick={() => setForm(initial)} disabled={!dirty}>Reset</button>
           <span className="spacer"/>
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" disabled={!dirty}><I.save size={14}/> Apply</button>
+          <button className="btn primary" disabled={!dirty || applying} onClick={applyChanges}>
+            {applying ? <I.refresh size={14}/> : <I.save size={14}/>} Apply
+          </button>
+          {applyResult && <div style={{ fontSize: 11, color: applyResult.includes("error") || applyResult.includes("Error") ? "var(--err)" : "var(--ok)", marginTop: 8, fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", maxHeight: 80, overflow: "auto" }}>{applyResult}</div>}
         </div>
       </div>
     </div>
