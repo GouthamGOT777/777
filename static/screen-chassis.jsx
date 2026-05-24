@@ -1,8 +1,78 @@
 /* global React, I, Pill, Sparkline, AreaChart, useLiveSeries, formatBps,
           useRouterPoll, useRollingHistory */
 
+function PortDetailModal({ device, portName, onClose }) {
+  const [data, setData] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [actionMsg, setActionMsg] = React.useState("");
+  const [acting, setActing] = React.useState(false);
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(`/api/routers/${device.id}/chassis/port/${encodeURIComponent(portName)}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => { setData({ error: "Failed to fetch" }); setLoading(false); });
+  }, [portName]);
+
+  const setAdmin = (up) => {
+    setActing(true);
+    fetch(`/api/routers/${device.id}/interfaces/${encodeURIComponent(portName)}/admin`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ up })
+    })
+      .then(r => r.json())
+      .then(d => { setActionMsg(d.output || (up ? "Interface enabled" : "Interface disabled")); setActing(false); })
+      .catch(e => { setActionMsg("Error: " + e.message); setActing(false); });
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 520 }}>
+        <div className="modal-head">
+          <div><div className="title mono">{portName}</div><div className="text-xs fg-3">Transceiver detail · show chassis hardware</div></div>
+          <div className="spacer"/>
+          <button className="icon-btn" onClick={onClose}><I.x/></button>
+        </div>
+        <div className="modal-body" style={{ padding: 20 }}>
+          {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--fg-3)" }}><I.refresh size={28}/><div style={{ marginTop: 10 }}>Loading…</div></div>}
+          {!loading && data?.error && <div style={{ color: "var(--err)", padding: 20 }}>{data.error}</div>}
+          {!loading && data && !data.error && (
+            <div>
+              <div className="kv-list" style={{ marginBottom: 16 }}>
+                <div className="k">Port</div><div className="v mono">{data.port}</div>
+                <div className="k">Xcvr slot</div><div className="v mono">{data.xcvr}</div>
+                <div className="k">Part number</div><div className="v mono">{data.part_number || "—"}</div>
+                <div className="k">Serial number</div><div className="v mono">{data.serial_number || "—"}</div>
+                <div className="k">Version</div><div className="v mono">{data.version || "—"}</div>
+                <div className="k">Description</div><div className="v">{data.description || "—"}</div>
+              </div>
+              <div className="divider"/>
+              <div className="row" style={{ gap: 10, marginTop: 14 }}>
+                <span className="fg-2 text-sm">Admin control:</span>
+                <button className="btn primary" disabled={acting} onClick={() => setAdmin(true)}>
+                  {acting ? <I.refresh size={13}/> : <I.check size={13}/>} Enable
+                </button>
+                <button className="btn" style={{ borderColor: "var(--err)", color: "var(--err)" }} disabled={acting} onClick={() => setAdmin(false)}>
+                  <I.x size={13}/> Disable
+                </button>
+              </div>
+              {actionMsg && (
+                <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 6, padding: "10px 12px", marginTop: 12, fontFamily: "var(--font-mono)", fontSize: 11, whiteSpace: "pre-wrap", color: "var(--fg-1)", maxHeight: 150, overflow: "auto" }}>
+                  {actionMsg}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Chassis({ device, setRoute }) {
   const [selectedPort, setSelected] = React.useState(null);
+  const [portDetail, setPortDetail] = React.useState(null);
   const { data, loading, error } = useRouterPoll(device.id, "chassis", 30000);
   const { data: ifaceData } = useRouterPoll(device.id, "interfaces", 5000);
 

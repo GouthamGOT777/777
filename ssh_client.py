@@ -128,6 +128,7 @@ class JuniperSSH:
 
     def get_dashboard_data(self) -> dict:
         re_out = self.exec_cmd("show chassis routing-engine")
+        mem_out = self.exec_cmd("show system memory")
         env_out = self.exec_cmd("show chassis environment")
         terse = self.exec_cmd("show interfaces terse")
         rates = self.exec_cmd(
@@ -137,7 +138,7 @@ class JuniperSSH:
         bgp = self.exec_cmd("show bgp summary")
         rt_sum = self.exec_cmd("show route summary")
         logs = self.exec_cmd("show log messages | last 30")
-        return _build_dashboard(re_out, env_out, terse, rates, ospf, bgp, rt_sum, logs)
+        return _build_dashboard(re_out, mem_out, env_out, terse, rates, ospf, bgp, rt_sum, logs)
 
     def get_chassis_data(self) -> dict:
         hw = self.exec_cmd("show chassis hardware")
@@ -174,6 +175,48 @@ class JuniperSSH:
         info["storage"] = _parse_storage(storage)
         info["active_users"] = _parse_users(users)
         return info
+
+    def get_chassis_port_detail(self, port_name: str) -> dict:
+        hw_out = self.exec_cmd("show chassis hardware")
+        return _parse_xcvr_detail(hw_out, port_name)
+
+    def set_interface_admin(self, iface_name: str, up: bool) -> dict:
+        if up:
+            cmd = f"delete interfaces {iface_name} disable"
+        else:
+            cmd = f"set interfaces {iface_name} disable"
+        config_block = f"configure; {cmd}; commit; exit"
+        if self._username == "root":
+            safe = config_block.replace('"', '\\"')
+            full = f'cli -c "{safe} | no-more"'
+        else:
+            full = f"{config_block} | no-more"
+        with self._lock:
+            if not self.is_alive():
+                ok, err = self.connect()
+                if not ok:
+                    raise ConnectionError(err)
+            _, stdout, stderr = self._client.exec_command(full, timeout=30)
+            out = stdout.read().decode("utf-8", errors="replace")
+            err_out = stderr.read().decode("utf-8", errors="replace")
+        return {"output": out + err_out, "action": "enable" if up else "disable", "interface": iface_name}
+
+    def set_interface_speed(self, iface_name: str, speed: str) -> dict:
+        cmd = f"set interfaces {iface_name} speed {speed}"
+        config_block = f"configure; {cmd}; commit; exit"
+        if self._username == "root":
+            safe = config_block.replace('"', '\\"')
+            full = f'cli -c "{safe} | no-more"'
+        else:
+            full = f"{config_block} | no-more"
+        with self._lock:
+            if not self.is_alive():
+                ok, err = self.connect()
+                if not ok:
+                    raise ConnectionError(err)
+            _, stdout, stderr = self._client.exec_command(full, timeout=30)
+            out = stdout.read().decode("utf-8", errors="replace")
+        return {"output": out, "interface": iface_name, "speed": speed}
 
 
 # ===================================================================== parsers
@@ -231,30 +274,106 @@ def _parse_system_info(ver_out: str, up_out: str) -> dict:
 def _parse_routing_engine(re_out: str) -> dict:
     result: dict = {}
 
-    # CPU idle → util
-    m = re.search(r"Idle\s+(\d+)\s*%", re_out)
-    if m:
-        result["cpu_util"] = 100 - int(m.group(1))
-    else:
-        m = re.search(r"(?:CPU|cpu)\s+utilization[:\s]+(\d+)\s*%", re_out)
-        if m:
-            result["cpu_util"] = int(m.group(1))
+    m = re.search(r"User\s+(\d+)\s+percent", re_out)
+    cpu_user = int(m.group(1)) if m else 0
+    m = re.search(r"Background\s+(\d+)\s+percent", re_out)
+    cpu_bg = int(m.group(1)) if m else 0
+    m = re.search(r"Kernel\s+(\d+)\s+percent", re_out)
+    cpu_kernel = int(m.group(1)) if m else 0
+    m = re.search(r"Interrupt\s+(\d+)\s+percent", re_out)
+    cpu_int = int(m.group(1)) if m else 0
+    m = re.search(r"Idle\s+(\d+)\s+percent", re_out)
+    cpu_idle = int(m.group(1)) if m else 100
 
-    # Memory
+    result["cpu_user"] = cpu_user
+    result["cpu_background"] = cpu_bg
+    result["cpu_kernel"] = cpu_kernel
+    result["cpu_interrupt"] = cpu_int
+    result["cpu_idle"] = cpu_idle
+    result["cpu_util"] = 100 - cpu_idle
+
+    m = re.search(r"CPU temperature\s+(\d+)\s+degrees C", re_out)
+    result["cpu_temp_c"] = int(m.group(1)) if m else 0
+
+    # Memory util from routing-engine (fallback)
     m = re.search(r"Used\s*\(percentage\)\s+(\d+)\s*%", re_out)
     if not m:
         m = re.search(r"Memory\s+utilization\s+(\d+)\s*%", re_out)
-    if m:
-        result["memory_util"] = int(m.group(1))
+    result["memory_util"] = int(m.group(1)) if m else 0
 
     m = re.search(r"Total memory\s+(\d+)\s*([MG])B", re_out, re.IGNORECASE)
     if m:
         val = int(m.group(1))
         result["memory_total_mb"] = val * 1024 if m.group(2).upper() == "G" else val
+    else:
+        result["memory_total_mb"] = 0
 
-    result.setdefault("cpu_util", 0)
-    result.setdefault("memory_util", 0)
-    result.setdefault("memory_total_mb", 0)
+    return result
+
+
+def _parse_system_memory(mem_out: str) -> dict:
+    result = {}
+    m = re.search(r"Used memory:\s+(\d+)\s+Kbytes\s+\((\d+)%\)", mem_out)
+    if m:
+        result["used_kb"] = int(m.group(1))
+        result["used_pct"] = int(m.group(2))
+    m = re.search(r"Free memory:\s+(\d+)\s+Kbytes\s+\((\d+)%\)", mem_out)
+    if m:
+        result["free_kb"] = int(m.group(1))
+        result["free_pct"] = int(m.group(2))
+    if "used_kb" in result and "free_kb" in result:
+        total = result["used_kb"] + result["free_kb"]
+        result["total_kb"] = total
+        result["total_mb"] = total // 1024
+        result["util"] = result.get("used_pct", 0)
+    else:
+        result.setdefault("util", 0)
+        result.setdefault("total_mb", 0)
+        result.setdefault("used_kb", 0)
+        result.setdefault("free_kb", 0)
+    return result
+
+
+def _parse_xcvr_detail(hw_out: str, port_name: str) -> dict:
+    m = re.search(r"[/\-](\d+)$", port_name)
+    if not m:
+        return {"error": f"Cannot parse port number from {port_name}", "port": port_name}
+    port_num = m.group(1)
+    xcvr_key = f"Xcvr {port_num}"
+
+    header_cols = None
+    result = {"port": port_name, "xcvr": xcvr_key, "found": False, "items": []}
+
+    for line in hw_out.split("\n"):
+        if re.match(r"\s*Item\s+Version\s+Part", line):
+            # Parse column positions from header
+            header_cols = {
+                "version": line.index("Version"),
+                "part": line.index("Part"),
+                "serial": line.index("Serial"),
+                "desc": line.index("Description"),
+            }
+            continue
+        if xcvr_key in line and header_cols:
+            result["found"] = True
+            def col(start, end=None):
+                s = line[start:end].strip() if end else line[start:].strip()
+                return s or "—"
+            result["version"] = col(header_cols["version"], header_cols["part"])
+            result["part_number"] = col(header_cols["part"], header_cols["serial"])
+            result["serial_number"] = col(header_cols["serial"], header_cols["desc"])
+            result["description"] = col(header_cols["desc"])
+            result["items"].append({
+                "item": xcvr_key,
+                "version": result["version"],
+                "part_number": result["part_number"],
+                "serial_number": result["serial_number"],
+                "description": result["description"],
+            })
+            break
+
+    if not result["found"]:
+        result["error"] = f"{xcvr_key} not found in chassis hardware output"
     return result
 
 
@@ -449,8 +568,20 @@ def _parse_log_messages(log_out: str) -> list:
     return messages
 
 
-def _build_dashboard(re_out, env_out, terse, rates, ospf, bgp, rt_sum, logs) -> dict:
+def _build_dashboard(re_out, mem_out, env_out, terse, rates, ospf, bgp, rt_sum, logs) -> dict:
     re_data = _parse_routing_engine(re_out)
+    mem_data = _parse_system_memory(mem_out)
+    # Use real memory data from show system memory if available, else fall back to routing-engine
+    if mem_data.get("used_kb"):
+        memory_util = mem_data["util"]
+        memory_total_mb = mem_data["total_mb"]
+        memory_used_kb = mem_data["used_kb"]
+        memory_free_kb = mem_data["free_kb"]
+    else:
+        memory_util = re_data["memory_util"]
+        memory_total_mb = re_data["memory_total_mb"]
+        memory_used_kb = 0
+        memory_free_kb = 0
     env_data = _parse_environment(env_out)
     ifaces = _parse_terse(terse)
     phys = [i for i in ifaces if re.match(r"^(ge|xe|et|fe)-", i["name"])]
@@ -502,9 +633,17 @@ def _build_dashboard(re_out, env_out, terse, rates, ospf, bgp, rt_sum, logs) -> 
 
     return {
         "cpu_util": re_data["cpu_util"],
-        "memory_util": re_data["memory_util"],
-        "memory_total_mb": re_data["memory_total_mb"],
-        "temperature_re": re_temp,
+        "cpu_user": re_data["cpu_user"],
+        "cpu_background": re_data["cpu_background"],
+        "cpu_kernel": re_data["cpu_kernel"],
+        "cpu_interrupt": re_data["cpu_interrupt"],
+        "cpu_idle": re_data["cpu_idle"],
+        "cpu_temp_c": re_data["cpu_temp_c"],
+        "memory_util": memory_util,
+        "memory_total_mb": memory_total_mb,
+        "memory_used_kb": memory_used_kb,
+        "memory_free_kb": memory_free_kb,
+        "temperature_re": re_data["cpu_temp_c"] or re_temp,
         "temperatures": temps,
         "fans": fans,
         "fan_pct": fan_pct,

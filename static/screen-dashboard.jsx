@@ -29,11 +29,26 @@ function Dashboard({ device, setRoute }) {
   const bgpAs    = data?.bgp_local_as ?? "—";
   const ribActive = data?.rib_active ?? 0;
 
+  const memUsedKb = data?.memory_used_kb ?? 0;
+  const memFreeKb = data?.memory_free_kb ?? 0;
+  const memTotalMb = data?.memory_total_mb ?? 0;
+  const memLabel = memUsedKb
+    ? `${mem}% · ${(memUsedKb/1024/1024).toFixed(1)}GB / ${memTotalMb >= 1024 ? (memTotalMb/1024).toFixed(0)+"GB" : memTotalMb+"MB"}`
+    : `${mem}%`;
+
+  const cpuBreakdown = data ? [
+    { k: "User",       v: data.cpu_user ?? 0 },
+    { k: "Kernel",     v: data.cpu_kernel ?? 0 },
+    { k: "Interrupt",  v: data.cpu_interrupt ?? 0 },
+    { k: "Background", v: data.cpu_background ?? 0 },
+    { k: "Idle",       v: data.cpu_idle ?? 100 },
+  ] : [];
+
   const stats = [
-    { label: "Throughput in",    value: formatBps(rxBps),         delta: "", data: rxSeries,  color: "var(--chart-1)" },
-    { label: "Throughput out",   value: formatBps(txBps),         delta: "", data: txSeries,  color: "var(--chart-2)" },
-    { label: "Packets / sec",    value: formatNum(pps),           delta: "", data: ppsSeries, color: "var(--chart-3)" },
-    { label: "CPU utilization",  value: `${cpu}%`,                delta: "", data: cpuSeries, color: "var(--chart-4)" },
+    { label: "Throughput in",    value: formatBps(rxBps),  delta: "", data: rxSeries,  color: "var(--chart-1)" },
+    { label: "Throughput out",   value: formatBps(txBps),  delta: "", data: txSeries,  color: "var(--chart-2)" },
+    { label: "CPU utilization",  value: `${cpu}%`,         delta: "", data: cpuSeries, color: "var(--chart-4)" },
+    { label: "Memory",           value: memLabel,          delta: "", data: memSeries, color: "var(--chart-3)" },
   ];
 
   if (loading && !data) {
@@ -115,10 +130,22 @@ function Dashboard({ device, setRoute }) {
             <div className="sub">live</div>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <HealthBar label="CPU"         value={cpu}  unit="%" icon={I.cpu}   warn={70} err={85}/>
-            <HealthBar label="Memory"      value={mem}  unit="%" icon={I.cpu}   warn={70} err={85}/>
-            <HealthBar label="Temperature" value={temp} unit="°C" icon={I.thermo} max={80} warn={65} err={75}/>
-            <HealthBar label="Fan"         value={fanPct} unit="%" icon={I.fan}  warn={90}/>
+            <HealthBar label={`CPU ${cpu}%`} value={cpu} unit="%" icon={I.cpu} warn={70} err={85}/>
+            {cpuBreakdown.length > 0 && (
+              <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--fg-3)", paddingLeft: 4, marginTop: -8 }}>
+                {cpuBreakdown.filter(x => x.k !== "Idle").map(x => (
+                  <span key={x.k} style={{ marginRight: 10 }}>{x.k}: {x.v}%</span>
+                ))}
+              </div>
+            )}
+            <HealthBar label={`Memory ${memLabel}`} value={mem} unit="%" icon={I.cpu} warn={70} err={85}/>
+            {memUsedKb > 0 && (
+              <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--fg-3)", paddingLeft: 4, marginTop: -8 }}>
+                Used: {(memUsedKb/1024).toFixed(0)} MB · Free: {(memFreeKb/1024).toFixed(0)} MB
+              </div>
+            )}
+            <HealthBar label={`Temp ${temp}°C`} value={temp} unit="°C" icon={I.thermo} max={80} warn={65} err={75}/>
+            <HealthBar label="Fan" value={fanPct} unit="%" icon={I.fan} warn={90}/>
             <div className="divider"/>
             {psus.length > 0 ? psus.slice(0,2).map((p, i) => (
               <div key={i} className="row" style={{ justifyContent: "space-between", fontSize: 12 }}>

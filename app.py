@@ -364,6 +364,48 @@ def api_terminal(router_id):
         return jsonify({"error": str(e), "output": f"Error: {e}"}), 503
 
 
+@app.route("/api/routers/<router_id>/chassis/port/<path:port_name>", methods=["GET"])
+def api_chassis_port(router_id, port_name):
+    ssh, router, err, code = get_ssh(router_id)
+    if err:
+        return jsonify({"error": err}), code
+    try:
+        return jsonify(ssh.get_chassis_port_detail(port_name))
+    except Exception as e:
+        pool.disconnect(router_id)
+        return jsonify({"error": str(e)}), 503
+
+
+@app.route("/api/routers/<router_id>/interfaces/<path:iface_name>/admin", methods=["POST"])
+def api_interface_admin(router_id, iface_name):
+    body = request.json or {}
+    up = body.get("up", True)
+    ssh, router, err, code = get_ssh(router_id)
+    if err:
+        return jsonify({"error": err}), code
+    try:
+        return jsonify(ssh.set_interface_admin(iface_name, up))
+    except Exception as e:
+        pool.disconnect(router_id)
+        return jsonify({"error": str(e)}), 503
+
+
+@app.route("/api/routers/<router_id>/interfaces/<path:iface_name>/speed", methods=["POST"])
+def api_interface_speed(router_id, iface_name):
+    body = request.json or {}
+    speed = body.get("speed", "")
+    if not speed:
+        return jsonify({"error": "speed required"}), 400
+    ssh, router, err, code = get_ssh(router_id)
+    if err:
+        return jsonify({"error": err}), code
+    try:
+        return jsonify(ssh.set_interface_speed(iface_name, speed))
+    except Exception as e:
+        pool.disconnect(router_id)
+        return jsonify({"error": str(e)}), 503
+
+
 if __name__ == "__main__":
     import argparse, os
     parser = argparse.ArgumentParser()
