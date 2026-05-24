@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1200"/>
+<title>LinkedIn Preview Cards</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a2e; font-family: 'Segoe UI', system-ui, sans-serif; padding: 40px; }
+  .page { width: 1200px; margin: 0 auto; }
+  h1 { color: #fff; margin-bottom: 32px; font-size: 28px; }
+
+  /* ── Card 1: Hero ── */
+  .hero {
+    width: 1200px; height: 628px;
+    background: linear-gradient(135deg, #0f0f1e 0%, #0d1b2a 60%, #0a2540 100%);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    margin-bottom: 40px;
+  }
+  .hero::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 70% 50%, rgba(0,180,120,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 20% 30%, rgba(0,120,255,0.10) 0%, transparent 50%);
+  }
+  .hero-left {
+    flex: 1; padding: 60px;
+    position: relative; z-index: 2;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,200,120,0.15); border: 1px solid rgba(0,200,120,0.4);
+    color: #00e084; font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+    padding: 6px 14px; border-radius: 20px; margin-bottom: 24px;
+  }
+  .hero-badge::before { content: "●"; font-size: 8px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .hero h2 { font-size: 48px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 16px; }
+  .hero h2 span { color: #00d97e; }
+  .hero p { font-size: 18px; color: rgba(255,255,255,0.6); line-height: 1.6; max-width: 440px; margin-bottom: 28px; }
+  .hero-stats {
+    display: flex; gap: 32px;
+  }
+  .stat { text-align: center; }
+  .stat .num { font-size: 32px; font-weight: 800; color: #00d97e; font-variant-numeric: tabular-nums; }
+  .stat .lbl { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+  .hero-right {
+    flex: 1.1; padding: 32px 48px 32px 0;
+    position: relative; z-index: 2;
+  }
+  .mock-window {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  }
+  .mock-bar {
+    background: rgba(255,255,255,0.06);
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+  .mock-bar .title { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 8px; font-family: monospace; }
+  .mock-body { padding: 16px; }
+
+  /* mini dashboard mock */
+  .mini-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 12px; }
+  .mini-stat {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .mini-stat .mlbl { font-size: 9px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .mini-stat .mval { font-size: 16px; font-weight: 700; font-family: monospace; }
+  .mini-stat.green .mval { color: #00d97e; }
+  .mini-stat.yellow .mval { color: #fbbf24; }
+  .mini-stat.blue .mval { color: #60a5fa; }
+  .mini-stat.red .mval { color: #f87171; }
+
+  .mini-chart { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .mini-chart .clbl { font-size: 9px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .mini-chart svg { display: block; }
+
+  .mini-ifaces { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mini-iface {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 6px; padding: 8px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mini-iface .idot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .mini-iface .idot.up { background: #00d97e; box-shadow: 0 0 5px #00d97e; }
+  .mini-iface .idot.down { background: #f87171; }
+  .mini-iface .iname { font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.7); flex: 1; }
+  .mini-iface .irate { font-family: monospace; font-size: 10px; color: rgba(255,255,255,0.35); }
+
+  /* ── Card 2: Before/After ── */
+  .compare {
+    width: 1200px; height: 628px;
+    background: #0f0f1e;
+    border-radius: 16px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    overflow: hidden; margin-bottom: 40px;
+    position: relative;
+  }
+  .compare-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 10; background: #0f0f1e; border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 50%; width: 64px; height: 64px;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+  }
+  .before {
+    background: #0d0d0d;
+    padding: 48px;
+    display: flex; flex-direction: column;
+    border-right: 1px solid rgba(255,255,255,0.08);
+  }
+  .before h3 { color: #f87171; font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+  .before .sub { color: rgba(255,255,255,0.35); font-size: 13px; margin-bottom: 28px; }
+  .terminal {
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: monospace;
+    font-size: 12px;
+    flex: 1;
+    overflow: hidden;
+  }
+  .terminal .prompt { color: #22c55e; }
+  .terminal .cmd { color: #fff; }
+  .terminal .out { color: rgba(255,255,255,0.45); }
+  .terminal .out.err { color: #f87171; }
+  .terminal .line { margin-bottom: 3px; line-height: 1.5; }
+  .before-pains {
+    margin-top: 20px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .pain { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.5); font-size: 13px; }
+  .pain::before { content: "✗"; color: #f87171; font-weight: 700; }
+
+  .after {
+    background: linear-gradient(135deg, #0d1b2a, #0a2540);
+    padding: 48px;
+    display: flex; flex-direction: column;
+  }
+  .after h3 { color: #00d97e; font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+  .after .sub { color: rgba(255,255,255,0.35); font-size: 13px; margin-bottom: 28px; }
+  .after-gains { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .gain { display: flex; align-items: flex-start; gap: 10px; }
+  .gain-icon { width: 28px; height: 28px; border-radius: 6px; background: rgba(0,217,126,0.15); border: 1px solid rgba(0,217,126,0.3); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .gain-text .gt { color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .gain-text .gs { color: rgba(255,255,255,0.4); font-size: 11px; }
+
+  /* ── Card 3: Feature grid ── */
+  .features {
+    width: 1200px; height: 628px;
+    background: linear-gradient(160deg, #0d1117 0%, #0d1b2a 100%);
+    border-radius: 16px; padding: 52px;
+    margin-bottom: 40px;
+  }
+  .features h2 { font-size: 36px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+  .features h2 span { color: #00d97e; }
+  .features .fsub { color: rgba(255,255,255,0.4); font-size: 15px; margin-bottom: 36px; }
+  .feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .feat {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 22px;
+    transition: border-color 0.2s;
+  }
+  .feat .ficon { font-size: 28px; margin-bottom: 12px; }
+  .feat .ftitle { color: #fff; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .feat .fdesc { color: rgba(255,255,255,0.45); font-size: 12.5px; line-height: 1.6; }
+  .feat .ftag { display: inline-block; background: rgba(0,217,126,0.12); color: #00d97e; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; margin-top: 10px; font-family: monospace; }
+
+  /* ── Card 4: Stack ── */
+  .stack-card {
+    width: 1200px; height: 628px;
+    background: #0a0a14;
+    border-radius: 16px; padding: 52px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 52px;
+    margin-bottom: 40px;
+  }
+  .stack-left h2 { font-size: 38px; font-weight: 800; color: #fff; margin-bottom: 12px; line-height: 1.1; }
+  .stack-left h2 span { color: #00d97e; }
+  .stack-left p { color: rgba(255,255,255,0.45); font-size: 15px; line-height: 1.7; margin-bottom: 28px; }
+  .stack-pills { display: flex; flex-wrap: wrap; gap: 10px; }
+  .spill {
+    padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700;
+    font-family: monospace;
+  }
+  .spill.py { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4); color: #60a5fa; }
+  .spill.react { background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.4); color: #22d3ee; }
+  .spill.flask { background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); color: #c084fc; }
+  .spill.ssh { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #fbbf24; }
+  .spill.json { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: #4ade80; }
+  .spill.jun { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #f87171; }
+
+  .stack-right { display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+  .metric-row {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .metric-row .mic { font-size: 22px; }
+  .metric-row .mmt { flex: 1; }
+  .metric-row .mmt .mn { color: #fff; font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .metric-row .mmt .ms { color: rgba(255,255,255,0.35); font-size: 12px; font-family: monospace; }
+  .metric-row .mv { font-size: 24px; font-weight: 800; color: #00d97e; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- CARD 1: Hero dashboard -->
+<div class="hero">
+  <div class="hero-left">
+    <div class="hero-badge">LIVE · UPDATES EVERY 5s</div>
+    <h2>Juniper Fleet<br/><span>Web Console</span></h2>
+    <p>Real-time network operations dashboard. Every metric live from the router via SSH — no database, no polling scripts, no guesswork.</p>
+    <div class="hero-stats">
+      <div class="stat"><div class="num">8</div><div class="lbl">Live screens</div></div>
+      <div class="stat"><div class="num">5s</div><div class="lbl">Refresh rate</div></div>
+      <div class="stat"><div class="num">0</div><div class="lbl">DB required</div></div>
+      <div class="stat"><div class="num">4</div><div class="lbl">UI themes</div></div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="mock-window">
+      <div class="mock-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="title">Helix · blr-mx86-sanity-2 · Dashboard</div>
+      </div>
+      <div class="mock-body">
+        <div class="mini-stats">
+          <div class="mini-stat blue"><div class="mlbl">RX Throughput</div><div class="mval">3.2 Gbps</div></div>
+          <div class="mini-stat green"><div class="mlbl">CPU util</div><div class="mval">14%</div></div>
+          <div class="mini-stat yellow"><div class="mlbl">Memory</div><div class="mval">37%</div></div>
+          <div class="mini-stat green"><div class="mlbl">Temp (RE)</div><div class="mval">54°C</div></div>
+        </div>
+        <div class="mini-chart">
+          <div class="clbl">Aggregate traffic · last 5 min</div>
+          <svg width="100%" height="52" viewBox="0 0 500 52" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#00d97e" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="#00d97e" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#60a5fa" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,40 L40,36 L80,28 L120,22 L160,18 L200,12 L240,8 L280,14 L320,10 L360,6 L400,4 L440,8 L500,6 L500,52 L0,52Z" fill="url(#g1)"/>
+            <path d="M0,40 L40,36 L80,28 L120,22 L160,18 L200,12 L240,8 L280,14 L320,10 L360,6 L400,4 L440,8 L500,6" fill="none" stroke="#00d97e" stroke-width="1.8"/>
+            <path d="M0,44 L40,42 L80,38 L120,34 L160,32 L200,28 L240,26 L280,30 L320,28 L360,26 L400,24 L440,28 L500,26 L500,52 L0,52Z" fill="url(#g2)"/>
+            <path d="M0,44 L40,42 L80,38 L120,34 L160,32 L200,28 L240,26 L280,30 L320,28 L360,26 L400,24 L440,28 L500,26" fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="3,2"/>
+          </svg>
+        </div>
+        <div class="mini-ifaces">
+          <div class="mini-iface"><div class="idot up"></div><div class="iname">et-0/0/0</div><div class="irate">8.4 Gbps</div></div>
+          <div class="mini-iface"><div class="idot up"></div><div class="iname">et-0/0/1</div><div class="irate">3.2 Gbps</div></div>
+          <div class="mini-iface"><div class="idot up"></div><div class="iname">et-0/0/2</div><div class="irate">1.8 Gbps</div></div>
+          <div class="mini-iface"><div class="idot down"></div><div class="iname">et-0/0/3</div><div class="irate">admin-dn</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CARD 2: Before / After -->
+<div class="compare">
+  <div class="compare-label">VS</div>
+  <div class="before">
+    <h3>❌ Before — SSH Terminal</h3>
+    <div class="sub">One device at a time · memorise every command · no history · walls of text</div>
+    <div class="terminal">
+      <div class="line"><span class="prompt">regress@blr-mx86:~$ </span><span class="cmd">ssh root@10.216.34.2</span></div>
+      <div class="line"><span class="out">root@router1> </span><span class="cmd">show chassis routing-engine</span></div>
+      <div class="line"><span class="out">Routing Engine status:</span></div>
+      <div class="line"><span class="out">&nbsp;&nbsp;Slot 0:</span></div>
+      <div class="line"><span class="out">&nbsp;&nbsp;&nbsp;&nbsp;Current state&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Master</span></div>
+      <div class="line"><span class="out">&nbsp;&nbsp;&nbsp;&nbsp;Temperature&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;54 degrees C</span></div>
+      <div class="line"><span class="out">&nbsp;&nbsp;&nbsp;&nbsp;CPU User&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7 percent</span></div>
+      <div class="line"><span class="out">&nbsp;&nbsp;&nbsp;&nbsp;Memory Utiliz.&nbsp;&nbsp;&nbsp;37 percent</span></div>
+      <div class="line"><span class="out">&nbsp;&nbsp;&nbsp;&nbsp;...</span></div>
+      <div class="line" style="margin-top:6px"><span class="out">root@router1> </span><span class="cmd">show interfaces terse | match et</span></div>
+      <div class="line"><span class="out err">-- repeat for every router --</span></div>
+    </div>
+    <div class="before-pains">
+      <div class="pain">One SSH session per router per question</div>
+      <div class="pain">No graphs — just numbers, no trend</div>
+      <div class="pain">Can't see all routers at once</div>
+      <div class="pain">Fat-finger a command = outage risk</div>
+    </div>
+  </div>
+  <div class="after">
+    <h3>✅ After — Helix Web Console</h3>
+    <div class="sub">Entire fleet · live graphs · one click actions · any browser</div>
+    <div class="after-gains">
+      <div class="gain"><div class="gain-icon">📊</div><div class="gain-text"><div class="gt">Live CPU · memory · temperature graphs</div><div class="gs">Auto-refreshes every 5s from real device output</div></div></div>
+      <div class="gain"><div class="gain-icon">🔌</div><div class="gain-text"><div class="gt">Click any port → transceiver Part# Serial#</div><div class="gs">show chassis hardware parsed automatically</div></div></div>
+      <div class="gain"><div class="gain-icon">🟢</div><div class="gain-text"><div class="gt">Enable / disable interfaces in one click</div><div class="gs">Runs configure + commit via SSH in background</div></div></div>
+      <div class="gain"><div class="gain-icon">🗺️</div><div class="gain-text"><div class="gt">Entire fleet on one screen</div><div class="gs">OSPF/BGP health, top links, syslog — all live</div></div></div>
+      <div class="gain"><div class="gain-icon">🖥️</div><div class="gain-text"><div class="gt">Embedded SSH terminal still there when you need it</div><div class="gs">Raw CLI access without leaving the browser</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CARD 3: Features -->
+<div class="features">
+  <h2>Everything your NOC needs. <span>Live.</span></h2>
+  <div class="fsub">All data fetched via SSH from Juniper JunOS devices — no agents, no SNMP, no database.</div>
+  <div class="feat-grid">
+    <div class="feat">
+      <div class="ficon">📡</div>
+      <div class="ftitle">Fleet Overview</div>
+      <div class="fdesc">All routers grouped by team. State, uptime, model, ports-up at a glance. Add any device by IP.</div>
+      <div class="ftag">show version</div>
+    </div>
+    <div class="feat">
+      <div class="ficon">📊</div>
+      <div class="ftitle">Live Dashboard</div>
+      <div class="fdesc">CPU breakdown (User/Kernel/Interrupt), memory Used/Free in KB, RE temperature, fan, PSU status.</div>
+      <div class="ftag">show chassis routing-engine</div>
+    </div>
+    <div class="feat">
+      <div class="ficon">🔌</div>
+      <div class="ftitle">Chassis & Ports</div>
+      <div class="fdesc">Visual port panel with live state. Click any port for Xcvr Part#, Serial#, Description. Enable/disable with one click.</div>
+      <div class="ftag">show chassis hardware</div>
+    </div>
+    <div class="feat">
+      <div class="ficon">📈</div>
+      <div class="ftitle">Interface Stats</div>
+      <div class="fdesc">Per-interface RX/TX bps, error counters, rolling sparklines. Set speed and admin-state via SSH in background.</div>
+      <div class="ftag">show interfaces extensive</div>
+    </div>
+    <div class="feat">
+      <div class="ficon">🌐</div>
+      <div class="ftitle">Routing Protocols</div>
+      <div class="fdesc">OSPF neighbor detail, BGP peer table with prefix counts, static routes, RIB summary — all live.</div>
+      <div class="ftag">show ospf / bgp / route</div>
+    </div>
+    <div class="feat">
+      <div class="ficon">🖥️</div>
+      <div class="ftitle">SSH Terminal</div>
+      <div class="fdesc">Full embedded terminal per router. Run any Juniper CLI command with arrow-key history — right in the browser.</div>
+      <div class="ftag">real-time · no lag</div>
+    </div>
+  </div>
+</div>
+
+<!-- CARD 4: Stack -->
+<div class="stack-card">
+  <div class="stack-left">
+    <h2>Zero setup.<br/><span>Just Python.</span></h2>
+    <p>No Docker. No npm. No build step. No database. Clone the repo, pip install, run. The entire stack fits in a laptop bag — deploy it anywhere with SSH reach to your devices.</p>
+    <div class="stack-pills">
+      <div class="spill py">Python 3</div>
+      <div class="spill flask">Flask 3</div>
+      <div class="spill ssh">Paramiko SSH</div>
+      <div class="spill react">React 18</div>
+      <div class="spill react">Babel standalone</div>
+      <div class="spill json">JSON storage</div>
+      <div class="spill jun">JunOS CLI</div>
+    </div>
+  </div>
+  <div class="stack-right">
+    <div class="metric-row"><div class="mic">⚡</div><div class="mmt"><div class="mn">Time to deploy</div><div class="ms">pip install -r requirements.txt && python3 app.py</div></div><div class="mv">&lt; 1 min</div></div>
+    <div class="metric-row"><div class="mic">🗄️</div><div class="mmt"><div class="mn">Database required</div><div class="ms">JSON flat file — data/routers.json</div></div><div class="mv">None</div></div>
+    <div class="metric-row"><div class="mic">📦</div><div class="mmt"><div class="mn">Dependencies</div><div class="ms">flask, flask-cors, paramiko</div></div><div class="mv">3 pkgs</div></div>
+    <div class="metric-row"><div class="mic">🔄</div><div class="mmt"><div class="mn">Dashboard refresh</div><div class="ms">SSH poll · live data only</div></div><div class="mv">5 s</div></div>
+    <div class="metric-row"><div class="mic">🌐</div><div class="mmt"><div class="mn">Open source</div><div class="ms">github.com/GouthamGOT777/777</div></div><div class="mv">Free</div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
